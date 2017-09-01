@@ -33,3 +33,27 @@
     margin: 0 auto;
     padding: 5px 0;
 }
+.vbo-views-form fieldset legend { margin-bottom: 0px; }
+.vbo-views-form .form-item-operation #edit-operation { display: inline; position: relative; }
+.vbo-views-form input.form-submit { margin: 0px 0px 0px 10px; }
+form.confirmation #edit-actions .form-submit { margin: 10px; }
+form.confirmation #edit-actions a {
+  background-color: #008fcc;
+  color: #ffffff;
+  border-color: #008fcc #008fcc #006b99;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
+  padding: 10px 12px;
+  border-radius: 4px;
+  vertical-align: middle;
+  text-align: center;
+  text-decoration: none;
+}
+form.confirmation #edit-actions a:hover {
+  background-color: #00a1e6;
+  border-color: #00a1e6 #00a1e6 #007db3;
+}
+.ctools-auto-submit-full-form { position: absolute; right:0px; top: 30px; }
+.ctools-auto-submit-full-form label {display: inline-block;
+    margin-right: 10px;}
+.ctools-auto-submit-full-form .views-widget{    display: inline-block;}
+.ctools-auto-submit-full-form .views-exposed-widget.views-submit-button {display: none;}

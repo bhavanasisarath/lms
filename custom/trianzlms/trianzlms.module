@@ -504,3 +504,21 @@ function trianzlms_add_new_skill_concept_submit(&$form, &$form_state) {
 
   return array('#type' => 'ajax', '#commands' => $commands);
 }
+
+/**
+ * Implements hook_form_alter().
+ */
+function trianzlms_form_alter(&$form, &$form_state, $form_id) {
+  // Chaning the entity referenced exposed filter into 'select' list.
+  if ($form_id == "views_exposed_form" && $form['#id'] == "views-exposed-form-manage-sub-skills-page") {
+    if (isset($form['#info']['filter-field_select_skill_target_id'])) {
+      $options1 = array('' => '- Any -');
+      $options2 = trianzlms_get_skill_list();
+      $options = $options1 + $options2;
+      $form['field_select_skill_target_id']['#type'] = 'select';
+      $form['field_select_skill_target_id']['#options'] = $options;
+      $form['field_select_skill_target_id']['#size'] = 1;
+      $form['field_select_skill_target_id']['#default'] = $options[''];
+    }
+  }
+}
