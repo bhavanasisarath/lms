@@ -1,0 +1,105 @@
+/* Add here all your CSS customizations */
+
+.footer-logo {
+	background: url(../img/sprite.png) 35px 578px white;
+}
+#name-and-slogan {
+	padding: 16px 0px 0px 0px;
+}
+table thead , .view-header {
+	background-color:#000;
+	color:#edd2bf;	
+}
+/* menu */
+.dropdown-menu ul:hover {
+	border: 1px solid red;
+}
+section.page-header {
+	margin: 0px;
+}
+
+a.scroll-to-top {
+	background-color: #e48c4e;
+}
+html.sticky-header-enabled.sticky-header-active #site-name {
+	padding-top:16px;
+	font-size:22px;
+}
+.user-login-home {
+	padding:0px;
+	background: #444a54;
+	color: #fff;
+	vertical-align: baseline;
+	text-align: left;
+	border: 0px;
+	min-height: 62px;
+	margin: 0px;
+	position: relative;
+}
+div.user-login-home > div {
+	padding-left:1px;
+}
+div.user-login-home > div > input.form-submit {
+	position:relative;
+	top:27px;
+}
+#user-login-form .form-item, #user-login-form .form-action {
+	margin:0px;	
+}
+/* Tabs */
+#drupal_tabs.tabs {
+	margin-bottom: 0px;
+}
+.nav-tabs li > a {
+	/* padding:0px; */
+}	
+.nav-tabs li a, .nav-tabs li a:hover {
+    border-left: 1px solid #ddd;
+    border-right: 1px solid #ddd;
+    border-top: 3px solid #999;
+	color:#0088cc;
+}
+html body .tabs .nav-tabs li.active a, .nav-tabs li.active a.active {
+    background: #000;
+    color: #fff;
+}
+/* Competency Track Block */
+.view-competency-track table {
+	margin-bottom:0px;
+}
+.view-competency-track ul {
+/* 	margin-left: 0px;	
+	padding-left:0px; */
+}
+.view-competency-track .competency-met {
+	background-color:wheat;
+	padding: 2px 2px 4px 2px;
+}
+.view-competency-track .list-none {
+	list-style:none; 
+}
+.view-competency-track td, th {
+	border-right: rgba(0,0,0,0.16) 1px solid;	
+}
+.content {	
+	margin:0px;
+	padding:0px;
+}
+.container {	
+	margin:0px;
+}
+.container.well {	
+	margin:15px;
+}
+.container.well .row {
+    margin-right: -34px;
+    margin-left: -34px;
+    margin-top: -20px;
+}
+
+.view-competency-dictionary-view > div {
+	padding-left:1px;
+}
+.field-collection-view .field-label {
+    width: auto;
+}

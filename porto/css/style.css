@@ -1,0 +1,71 @@
+.field-multiple-table{
+    width: 100%;
+}
+.tabledrag-toggle-weight-wrapper{
+    display: none;
+}
+
+/**New look login page css**/
+
+@font-face {
+    font-family: 'Segoe UI';
+    font-weight:normal;
+    src: url("../fonts/Light/segoeuib.ttf");
+    src: url("../fonts/Light/segoe-ui-webfont.woff");
+}
+
+
+@font-face {
+    font-family: 'Segoe UI Semibold';
+    font-weight:normal;
+    src: url("../fonts/Light/seguisb.ttf");
+
+}
+
+body.not-logged-in{background-image: url(../images/login-bg.jpg); background-size: cover;}
+body,html{height: 100%;}
+.user-login{display: table; height: 100%; min-height: 100%; width: 100%; padding-top: 30px; padding-bottom: 30px;}
+.login-section{display: table-cell; vertical-align: middle;}
+.form{width: 455px; margin: 0px auto; background-color: #fff;}
+.form-shadow{float: left; width: 100%; height: auto; -webkit-box-shadow: 0px 2px 5px 0px rgba(0,0,0,0.75);
+             -moz-box-shadow: 0px 2px 5px 0px rgba(0,0,0,0.75);
+             box-shadow: 0px 2px 5px 0px rgba(0,0,0,0.75);}
+.logo{margin-bottom: 40px;}
+.logo img{margin: 0px auto; display: block;}
+.login-text{float: left; width: 100%; height: auto; background: #efefef; /* Old Browsers */
+            background: -webkit-linear-gradient(top,#efefef,#dbdbdb); /*Safari 5.1-6*/
+            background: -o-linear-gradient(top,#efefef,#dbdbdb); /*Opera 11.1-12*/
+            background: -moz-linear-gradient(top,#efefef,#dbdbdb); /*Fx 3.6-15*/
+            background: linear-gradient(to bottom, #efefef, #dbdbdb); /*Standard*/
+            border-top-right-radius: 8px; border-top-left-radius: 8px;}
+.login-text p{margin-bottom: 0px; font-size: 20px; text-align: center; padding: 15px 0px; color: #5e5e5e; 
+              text-shadow: -13px 8px 8px #fff; font-family: Segoe UI Semibold;}
+.labels-inputs{float: left; width: 100%; height: auto; background-color: #F8F8F8;padding: 20px 16px 6px 16px;
+               border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;} 
+.labels-inputs label{font-size: 16px; color: #5E5E5E; font-family: segoe UI; font-weight: normal; 
+                     margin-bottom: 10px; float: left; width: 100%; margin-bottom: 8px;} 
+.labels-inputs .form-text{float: left; width: 100% !important; padding: 12px 12px !important; margin-bottom: 8px; border: 2px solid #efefef !important;
+                          box-shadow: 9px 11px 2px 5px #efefef;}
+/*.login{float: left; width: 100%; height: auto; background-color: #CE5B29; padding: 10px 0px; margin-top: 10px;}*/
+.login .form-actions input{width: 100% !important; height: auto; background-color: #CE5B29; padding: 10px 0px; margin-top: 10px;}
+/*.login p{font-size: 16px; color: #fff; text-align: center; margin-bottom: 0px; font-family: segoe UI;}*/
+.user{background-image: url(../images/user-icon.png); background-repeat: no-repeat; background-position: 95% 14px;}
+.password{background-image: url(../images/password-icon.png); background-repeat: no-repeat; 
+          background-position: 95% 18px;}
+#auth_box h2.title {margin: 0;padding: 0px;}
+.labels-inputs .form-item{margin: 0px;}
+.login .form-actions input{margin-right: 0px;}
+.page-user-login .alert-danger{ margin-bottom:0px !important; border-radius:0px !important;float: left;width: 100%;margin: 0px auto;}
+.page-user-login .alert ul{display: inline-block;}
+.page-user-login div.messages{ float: left;width: 100%;}
+
+/*Media Query*/
+@media screen and (max-width: 499px){
+    .form{width: 100%; padding: 0px 15px;}
+    .user-login{padding-top: 30px; padding-bottom: 30px;}
+}
+@media screen and (max-width: 460px){
+    #auth_box{width:100% !important;padding: 20px 0 0;}
+    .middle-login{margin: 0px 8px 30px 8px !important;display: inline-block;}
+    #auth_box input[type="submit"] {float: none !important;}
+}
