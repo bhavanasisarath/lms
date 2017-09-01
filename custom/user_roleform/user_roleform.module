@@ -1,0 +1,164 @@
+<?php
+
+/**
+ * @file
+ * Code for the Trianz University Allows admin to assign roles to employees.
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function user_roleform_permission() {
+  return array(
+    'assign roles' => array(
+      'title' => t('Assign roles to users'),
+      'description' => t('Allows admin to assign roles to users')
+    )
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function user_roleform_menu() {
+  $items['role-assign'] = array(
+    'title' => 'Assign Role',
+    'page callback' => 'user_roleform_page_callback',
+    'access arguments' => array(
+      'assign roles'
+    ),
+    'type' => MENU_CALLBACK
+  );
+
+  $items['get-roles'] = array(
+    'title' => 'Getting roles of users',
+    'page callback' => '_user_roleform_get_roles',
+    'access callback' => TRUE,
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_callback().
+ */
+function user_roleform_page_callback() {
+//The argument is the name of the function with the form details.
+  return drupal_get_form('user_roleform_form');
+}
+
+/**
+ * Implements hook_form().
+ */
+function user_roleform_form($form, &$form_state) {
+  $form = array();
+  $form['user_assign'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Select Employee'),
+    '#size' => 30,
+    '#maxlength' => 60,
+    '#autocomplete_path' => 'user/autocomplete',
+    '#weight' => -1
+  );
+  $form['role_select'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Select role to assign'),
+    '#multiple' => TRUE,
+    '#options' => _user_roleform_role_list()
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Assign'
+  );
+  return $form;
+}
+
+/**
+ * Implements hook_form_validate().
+ *
+ * @param array $form
+ *   Form with it's elements.
+ * @par
+ * am array $form_state
+ *   Contains input values of a form.
+ */
+function user_roleform_form_validate($form, &$form_state) {
+  if ($form['#form_id'] == 'user_roleform_form') {
+    $user_name = $form_state['values']['user_assign'];
+    $selected_roles = $form_state['values']['role_select'];
+    // Validating username field.
+    if (empty($user_name)) {
+      form_set_error('user_assign', 'Please select employee to assign role');
+    }
+    else {
+// Verifying the user name is valid or not.
+      if (!user_load_by_name($user_name)) {
+        form_set_error('user_assign', 'Please select valid employee name');
+      }
+    }
+    // Validating assign role field.
+    $checked = FALSE;
+    foreach ($selected_roles as $role) {
+      if ($role > 0) {
+        $checked = TRUE;
+        break;
+      }
+    }
+    if (!$checked) {
+      form_set_error('role_select', 'Please select role to assign');
+    }
+  }
+}
+
+/**
+ * Implements hook_submit().
+ */
+function user_roleform_form_submit($form, &$form_state) {
+  $roles = array();
+  $roles = $form_state['values']['role_select'];
+  $username = $form_state['values']['user_assign'];
+  $user_obj = user_load_by_name($username);
+  // Removing existing roles 2=> authenticated, 6 => Participant
+  foreach ($user_obj->roles as $rolekey => $existrole) {
+    user_multiple_role_edit(array($user_obj->uid), 'remove_role', $rolekey);
+    user_multiple_role_edit(array($user_obj->uid), 'add_role', 2);
+    user_multiple_role_edit(array($user_obj->uid), 'add_role', 6);
+  }
+  // Adding new roles.
+  foreach ($roles as $role) {
+    if ($role != 0) {
+      user_multiple_role_edit(array($user_obj->uid), 'add_role', $role);
+    }
+  }
+  drupal_set_message(t('Roles has been successfully assigned to ' . $username), $type = 'status', $repeat = FALSE);
+  drupal_goto("employee-list");
+}
+
+/**
+ * Implements custom callback function.
+ */
+function _user_roleform_role_list() {
+  $sql = "SELECT rid, name FROM {role} where rid <> 2 && rid <> 1 && rid <>3";
+  $exec = db_query($sql);
+  $role_list = array(); // Storage !
+  foreach ($exec as $role) {
+    $role_list[$role->rid] = check_plain($role->name);
+  }
+  return $role_list;
+}
+
+/**
+ * Implements Ajax callback function to get user role id's.
+ */
+function _user_roleform_get_roles() {
+  $data = $_POST['data'];
+  $user_name = json_decode($data, true);
+  $user_info = user_load_by_name(trim($user_name));
+  $role_ids = array();
+  foreach ($user_info->roles as $key => $data) {
+    $role_ids['id'][] = $key;
+  }
+  drupal_json_output($role_ids);
+}

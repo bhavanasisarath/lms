@@ -1,0 +1,191 @@
+<?php
+
+/**
+ * @file
+ * For Employee competency track.
+  */
+
+/**
+ * Implements hook_action_info().
+ */
+function competency_tracker_action_info() {
+  return array(
+    'competency_tracker_add_skills_action' => array(
+      'type' => 'user',
+      'label' => t('Add Skills'),
+      'configurable' => TRUE,
+      'behavior' => array('add_skill_property'),
+      'triggers' => array('any'),
+    ),
+    'competency_tracker_remove_skills_action' => array(
+      'type' => 'user',
+      'label' => t('Remove Skills'),
+      'configurable' => TRUE,
+      'behavior' => array('remove_skill_property'),
+      'triggers' => array('any'),
+    ),
+  );
+}
+
+/**
+ * An Employee skills form for admin to add additional skills.
+ *
+ * @return array
+ *   Skill form array.
+ */
+function competency_tracker_manage_competency_skills_form() {
+  $form = array();
+
+  $form['emp_skill'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Select Skills'),
+    '#autocomplete_path' => 'taxonomy/autocomplete/field_skills_added_by_admin',
+    '#cardinality' => -1,
+    '#weight' => 2,
+  );
+
+  return $form;
+}
+
+/**
+ * Action form to adding skills to an employee.
+ */
+function competency_tracker_add_skills_action_form($options) {
+  return competency_tracker_manage_competency_skills_form();
+}
+
+/**
+ * To get selected skills tid's
+ *
+ * @param array $emp_skills_state
+ *   Employee skill form values array.
+ *
+ * @return array
+ *   TID's of selected skills.
+ */
+function competency_tracker_get_selected_skills_tids($emp_skills_state) {
+  $skills_tids = array();
+  if (!empty($emp_skills_state['values']['emp_skill'])) {
+    $selected_skills = explode(',', $emp_skills_state['values']['emp_skill']);
+    foreach ($selected_skills as $skill_name) {
+      $term = taxonomy_get_term_by_name(trim($skill_name));
+      $term_item = reset($term);
+      $skills_tids[] = $term_item->tid;
+    }
+  }
+  return $skills_tids;
+}
+
+/**
+ * Storing the selected skills tid's into an array.
+ */
+function competency_tracker_add_skills_action_submit($form, $form_state) {
+  $selected_skills_tids = competency_tracker_get_selected_skills_tids($form_state);
+
+  return array('selected_skills_tids' => $selected_skills_tids);
+}
+
+/**
+ * Validating add skill action form.
+ */
+function competency_tracker_add_skills_action_validate($form, $form_state) {
+  if (empty($form_state['values']['emp_skill'])) {
+    form_set_error('emp_skill', t('Please select atleast one skill to perform the operation.'));
+  }
+}
+
+/**
+ * Adding skills to employee competency.
+ *
+ * @param object $user
+ *   Selected user object.
+ * @param $context
+ *   Array of additional information about what triggered the action.Includes
+ *   the following elements:
+ *   - 'selected_skills_tids': Selected skills tid's.
+ */
+function competency_tracker_add_skills_action($user, $context) {
+  if (!empty($selected_skills_tids = $context['selected_skills_tids'])) {
+    // Fetching the Admin added skills to the employee.
+    $existed_skills = competency_tracker_get_existed_skills_added_by_admin($user);
+    // Adding the selected skills to employee.
+    foreach ($selected_skills_tids as $tid) {
+      // Adding the skill, if that is not already assigned to the employee.
+      if (!in_array($tid, $existed_skills)) {
+        $user->field_skills_added_by_admin[LANGUAGE_NONE][]['tid'] = $tid;
+      }
+    }
+    // Updating the user.
+    field_attach_update('user', $user);
+    drupal_set_message(t('Successfully added selected skills to the selected users.'), $type = 'status', $repeat = FALSE);
+  }
+}
+
+/**
+ * Generates action form to select skills.
+ */
+function competency_tracker_remove_skills_action_form($options) {
+  return competency_tracker_manage_competency_skills_form();
+}
+
+/**
+ * Storing the selected skills tid's into an array.
+ */
+function competency_tracker_remove_skills_action_submit($form, $form_state) {
+  $selected_skills_tids = competency_tracker_get_selected_skills_tids($form_state);
+
+  return array('selected_skills_tids' => $selected_skills_tids);
+}
+
+/**
+ * Validating the remove skills action form.
+ */
+function competency_tracker_remove_skills_action_validate($form, $form_state) {
+  if (empty($form_state['values']['emp_skill'])) {
+    form_set_error('emp_skill', t('Please select atleast one skill to perform the operation.'));
+  }
+}
+
+/**
+ * Remove skills from employee competency.
+ *
+ * @param object $user
+ *   Selected user object.
+ * @param $context
+ *   Array of additional information about what triggered the action.Includes
+ *   the following elements:
+ *   - 'selected_skills_tids': Selected skills tid's.
+ *
+ */
+function competency_tracker_remove_skills_action($user, $context) {
+  if (!empty($selected_skills_tids = $context['selected_skills_tids'])) {
+    foreach ($user->field_skills_added_by_admin[LANGUAGE_NONE] as $key => $existed_skill) {
+      if (in_array($existed_skill['tid'], $selected_skills_tids)) {
+        // Removing the selected skills by admin.
+        unset($user->field_skills_added_by_admin[LANGUAGE_NONE][$key]);
+      }
+    }
+    field_attach_update('user', $user);
+    drupal_set_message(t('Successfully removed selected skills to the selected users.'), $type = 'status', $repeat = FALSE);
+  }
+}
+
+/**
+ * To get the existed skills added by admin.
+ *
+ * @param object $user
+ *   Selectd user object.
+ *
+ * @return array
+ *   List of existed skills by a selected user.
+ */
+function competency_tracker_get_existed_skills_added_by_admin($user) {
+  $skills = array();
+  if (isset($user->field_skills_added_by_admin[LANGUAGE_NONE]) &&
+      !empty($user->field_skills_added_by_admin[LANGUAGE_NONE])) {
+    foreach ($user->field_skills_added_by_admin[LANGUAGE_NONE] as $key => $skill_tid) {
+      $skills[] = $skill_tid['tid'];
+    }
+  }
+  return $skills;
+}

@@ -1,0 +1,16 @@
+name = Trianz LMS
+description = Custom module to add new extend the functionality.....
+core = 7.x
+package = Custom
+
+; Add a style sheet for all media
+stylesheets[all][] = css/trianzlms.css
+
+; Add a java script for all media
+scripts[] = js/inlineedit.js
+
+; Information added by Drupal.org packaging script on 2016-01-01
+version = "7.x-1.7"
+core = "7.x"
+project = "trianzlms"
+

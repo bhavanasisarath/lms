@@ -1,0 +1,14 @@
+name = Trianz University Competency Views
+description = Feature for Competency Track Management
+core = 7.x
+package = Trianz University
+version = 7.x-1.0
+dependencies[] = trianzkm
+dependencies[] = views
+dependencies[] = views_bootstrap
+features[ctools][] = views:views_default:3.0
+features[features_api][] = api:2
+features[views_view][] = add_or_remove_skills_to_competency
+features[views_view][] = competency_dictionary_view
+features[views_view][] = competency_track
+features_exclude[dependencies][ctools] = ctools

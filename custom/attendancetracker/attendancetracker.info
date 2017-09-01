@@ -1,0 +1,10 @@
+name = attendancetracker
+description = Custom module for tracking attendance online
+package = Custom
+version = "7.x-1.7"
+core = "7.x"
+project = "myattendancetracker"
+dependencies[] = views
+
+; Add a style sheet for all media
+stylesheets[all][] = css/attendancetracker.css

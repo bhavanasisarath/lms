@@ -1,0 +1,588 @@
+<?php
+
+/**
+ * @file
+ * Defines features and functions common to the Trianz modules.
+ */
+include_once 'trianzkm.admin.settings.inc';
+include_once 'trianzkm.admin.cron.settings.inc';
+
+/**
+ * Implements hook_permission().
+ */
+function trianzkm_permission() {
+  return array(
+    'assign roles' => array(
+      'title' => t('Assign roles to users'),
+      'description' => t('Allows admin to assign roles to users'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function trianzkm_menu() {
+  $items['trianz_menu'] = array(
+    'title' => 'Test Menu',
+    'page callback' => 'trianzkm_test_page',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+  $items['delete_users'] = array(
+    'title' => 'Delete users except Webmaster',
+    'page callback' => 'trianzkm_delete_users',
+    'access callback' => TRUE,
+    'access arguments' => array('assign roles'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['admin/config/system/trianz_university_settings'] = array(
+    'title' => 'Trianz University Settings',
+    'description' => 'Configure trianz unversity settings on your website.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('trianzkm_university_settings_admin_form'),
+    'access arguments' => array('assign roles'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'trianzkm.admin.settings.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Deletes all users except superadmin user.
+ */
+function trianzkm_delete_users() {
+  $users = entity_load('user');
+  foreach ($users as $key => $value) {
+    If ($key != 1) {
+      user_delete($key);
+    }
+  }
+  drupal_set_message(t('All users have been removed successfully except admin.'));
+  drupal_goto('admin/people');
+}
+
+/**
+ * Existing now if the user does not have the users list.
+ * @param $email
+ *  The email that contains the user email field.
+ */
+function trianzkm_existing_user_check($email) {
+  $query = (bool) db_query_range('SELECT 1 FROM {users}  WHERE mail = :mail', 0, 1, array(':mail' => $email))->fetchField();
+  return $query;
+}
+
+/**
+ * Existing title checking in nodes.
+ * @param $newtitle
+ *  The newtitle that contains the node title field.
+ */
+function trianzkm_existing_node_title_check($newtitle) {
+  $query = db_query('SELECT nid FROM {node} WHERE title = :mytitle', array(':mytitle' => $newtitle))->fetchField();
+  return $query;
+}
+
+/**
+ * Get field distinct data.
+ * @param string $tablename
+ *  Table name.
+ * @param string $fieldname
+ *  Field name in the table.
+ * @return array
+ *  An array of distinct field data from a table.
+ */
+function trianzkm_distinct_field_data($tablename, $fieldname) {
+  if (isset($tablename) && isset($fieldname)) {
+    $query = db_select($tablename, 'e')
+        ->distinct()
+        ->fields('e', array($fieldname))
+        ->orderBy($fieldname);
+    $result = $query->execute()->fetchAll();
+    return $result;
+  }
+  return '';
+}
+
+/**
+ * Creeating a new nodes for Cost Center and Business Group.
+ */
+function trianzkm_node_new_create($type, $title) {
+  global $user;
+
+// entity_create replaces the procedural steps in the first example of
+// creating a new object $node and setting its 'type' and uid property
+  $values = array(
+    'type' => $type,
+    'uid' => $user->uid,
+    'status' => 1,
+    'comment' => 0,
+    'promote' => 0,
+  );
+  $entity = entity_create('node', $values);
+
+// The entity is now created, but we have not yet simplified use of it.
+// Now create an entity_metadata_wrapper around the new node entity
+// to make getting and setting values easier
+  $ewrapper = entity_metadata_wrapper('node', $entity);
+
+// Using the wrapper, we do not have to worry about telling Drupal
+// what language we are using. The Entity API handles that for us.
+  $ewrapper->title->set($title);
+
+// Entity API cannot set date field values so the 'old' method must
+// be used
+  $my_date = new DateTime();
+  $entity->field_my_date[LANGUAGE_NONE][0] = array(
+    'value' => date_format($my_date, 'Y-m-d'),
+    'timezone' => 'UTC',
+    'timezone_db' => 'UTC',
+  );
+
+// Now just save the wrapper and the entity
+// There is some suggestion that the 'true' argument is necessary to
+// the entity save method to circumvent a bug in Entity API. If there is
+// such a bug, it almost certainly will get fixed, so make sure to check.
+  $ewrapper->save();
+}
+
+/**
+ * Creating new node or return existing node is.
+ */
+function trianzkm_node_identify($type, $title) {
+  if (empty(trianzkm_existing_node_title_check($title))) {
+    trianzkm_node_new_create($type, $title);
+    return (trianzkm_existing_node_title_check($title));
+  }
+  else {
+    return (trianzkm_existing_node_title_check($title));
+  }
+}
+
+/**
+ * Trianz km test page.
+ */
+function trianzkm_test_page() {
+  //echo "test";
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function trianzkm_form_alter(&$form, &$form_state, $form_id) {
+  global $user;
+  $login_user = user_load($user->uid);
+  if ($form_id == 'taxonomy_manager_form') {
+    if (!in_array('administrator', array_values($user->roles))) {//Not an administrator
+      $form['toolbar']['export_show']['#access'] = FALSE;
+      $form['toolbar']['double_tree_show']['#access'] = FALSE;
+      $form['jump']['#access'] = FALSE;
+    }
+  }
+
+  if ($form_id == 'user_profile_form') {
+    $form['field_business_group']['#disabled'] = TRUE;
+    $form['field_date_of_joining']['#disabled'] = TRUE;
+    $form['field_cost_center']['#disabled'] = TRUE;
+    $form['field_grade']['#disabled'] = TRUE;
+    $form['field_locationtype']['#disabled'] = TRUE;
+    $form['field_emp_first_name']['#disabled'] = TRUE;
+    $form['field_emp_last_name']['#disabled'] = TRUE;
+    $form['field_employee_code']['#disabled'] = TRUE;
+    $form['field_department']['#disabled'] = TRUE;
+    $form['field_employee_designation']['#disabled'] = TRUE;
+    $form['field_manager_name']['#disabled'] = TRUE;
+    $form['field_emp_location']['#disabled'] = TRUE;
+    $form['field_trianz_experience']['#disabled'] = TRUE;
+    $form['field_date_of_birth']['#disabled'] = TRUE;
+    $form['field_gender']['#disabled'] = TRUE;
+  }
+// Giving title filed access to admin, webmasetr in training program form.
+  if ($form_id == 'training_node_form') {
+    if ((!array_key_exists(3, $login_user->roles)) && (!array_key_exists(4, $login_user->roles))) {
+      $form['title']['#access'] = FALSE;
+    }
+  }
+// Giving title filed,triaining title field access to admin, webmasetr in session form.
+  if ($form_id == 'sessions_node_form') {
+    if ((!array_key_exists(3, $login_user->roles)) && (!array_key_exists(4, $login_user->roles))) {
+      $form['title']['#access'] = FALSE;
+      $form['field_training_title']['#access'] = FALSE;
+    }
+    // Adding custom session validation.
+    $form['#validate'][] = 'trianzkm_validate_session';
+    $form['#attached']['js'] = array(
+      drupal_get_path('module', 'trianzkm') . '/js/session_node_form.js',
+    );
+  }
+
+  if ($form_id == "views_exposed_form" && $form['#id'] == "views-exposed-form-final-grid-view-page-1") {
+
+    $form['field_emp_first_name_value']['#size'] = 20;
+    $form['field_emp_last_name_value']['#size'] = 20;
+    // Designation field alter for filter purpose.
+    if (isset($form['#info']['filter-field_employee_designation_value'])) {
+      $options1 = array('' => '- Any -'); // Buld the options array based on the query results, overwriting duplicate entries
+      $options_data = variable_get('company_designations');
+      $options2 = explode("\n", $options_data);
+      foreach ($options2 as $value) {
+        $options3[trim($value)] = $value;
+      }
+      $options = array_merge($options1, $options3);
+
+      $form['field_employee_designation_value']['#type'] = 'select';
+      $form['field_employee_designation_value']['#options'] = $options;
+      $form['field_employee_designation_value']['#size'] = 1;
+      $form['field_employee_designation_value']['#default'] = $options[''];
+    }
+    // Project field alter for filter purpose.
+    if (isset($form['#info']['filter-field_assis_project_name_target_id'])) {
+      // Build a query to get all node ids.
+      $query = new EntityFieldQuery();
+      $result = $query->entityCondition('entity_type', 'node')->entityCondition('bundle', 'project_listing')->execute();
+      $nodes = node_load_multiple(array_keys($result['node'])); // Add a default so the filter is optional
+      $options = array('' => '- Any -'); // Buld the options array based on the query results, overwriting duplicate entries
+      foreach ($nodes as $nid => $node) {
+        $value = $node->title;
+        $options[$nid] = $value;
+      }
+      // Alter the field.
+      $form['field_assis_project_name_target_id']['#type'] = 'select';
+      $form['field_assis_project_name_target_id']['#options'] = $options;
+      $form['field_assis_project_name_target_id']['#size'] = 1;
+    }
+    // Grade field alter for filter purpose.
+    if (isset($form['#info']['filter-field_grade_value'])) {
+      $options1 = array('' => '- Any -'); // Buld the options array based on the query results, overwriting duplicate entries
+      $options_data = variable_get('company_grades');
+      $options2 = explode("\n", $options_data);
+      $options = array_merge($options1, $options2);
+      $form['field_grade_value']['#type'] = 'select';
+      $form['field_grade_value']['#options'] = $options;
+      $form['field_grade_value']['#size'] = 1;
+      $form['field_grade_value']['#default'] = $options[''];
+    }
+    // Manager field alter for filter purpose.
+    if (isset($form['#info']['filter-field_manager_name_value'])) {
+      $options = array('' => '- Any -'); // Buld the options array based on the query results, overwriting duplicate entries
+      $query = db_select('field_data_field_manager_name', 'm')
+          ->fields('m', array('field_manager_name_value'))
+          ->orderBy('m.field_manager_name_value', 'ASC')
+          ->distinct();
+      $result = $query->execute()->fetchAll();
+      foreach ($result as $key => $value) {
+        $options[$value->field_manager_name_value] = $value->field_manager_name_value;
+      }
+      $form['field_manager_name_value']['#type'] = 'select';
+      $form['field_manager_name_value']['#options'] = $options;
+      $form['field_manager_name_value']['#size'] = 1;
+    }
+    // echo "<pre>";print_r($form);exit;
+    // Practice field alter for filter purpose.
+    if (isset($form['#info']['filter-field_department_value'])) {
+      $options1 = array('' => '- Any -');  // Buld the options array based on the query results, overwriting duplicate entries
+      $options_data = variable_get('company_practice');
+      $options2 = explode("\n", $options_data);
+      foreach ($options2 as $value) {
+        $options4[trim($value)] = $value;
+      }
+      $options = array_merge($options1, $options4);
+      $form['field_department_value']['#type'] = 'select';
+      $form['field_department_value']['#options'] = $options;
+      $form['field_department_value']['#size'] = 1;
+      $form['field_department_value']['#default'] = $options[''];
+    }
+  }
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function trianzkm_views_api($module, $api) {
+  if ($module == 'views' && $api == 'views_default') {
+    return array('version' => 2);
+  }
+}
+
+/**
+ * Implements hook_ctools_plugin_api().
+ */
+function trianzkm_ctools_plugin_api($module, $api) {
+  if ($module == 'feeds' && $api == 'feeds_importer_default') {
+    return array('version' => 1);
+  }
+}
+
+/**
+ * Get taxonomy id if available otherwise create new taxnomy and return id
+ * @param type $taxonomy_vocabulary
+ * @param type $value
+ * @return type
+ */
+function trianzkm_taxonomy_term_tid($taxonomy_vocabulary, $value) {
+  $term_array = taxonomy_get_term_by_name($value);
+  if (!empty($term_array)) {
+    $term = reset($term_array); # get the first element of the array which is our term object
+    return $term->tid;
+  }
+  else {
+    $taxnomy_id = taxonomy_vocabulary_machine_name_load($taxonomy_vocabulary);
+    $term = new stdClass();
+    if (!empty($value)) {
+      $term->name = $value;
+      $term->vid = $taxnomy_id->vid;
+      taxonomy_term_save($term);
+      return $term->tid;
+    }
+  }
+}
+
+/**
+ * Allow the results from the Ldap search answer to be modified
+ * The query parameters are provided as context information
+ * (readonly)
+ *
+ */
+function trianzkm_user_presave(&$edit, $account, $category) {
+
+  if (isset($edit['field_manager_name'][LANGUAGE_NONE][0]['value'])) {
+    if (preg_match('/CN=([^,]+)/', $edit['field_manager_name'][LANGUAGE_NONE][0]['value'], $matches) > 0) {
+      $edit['field_manager_name'][LANGUAGE_NONE][0]['value'] = $matches[1];
+    }
+  }
+}
+
+/**
+ * Custom session validate function.
+ * @param array $form
+ *  Nested array of form elements that comprise the form.
+ * @param array $form_state
+ *  A keyed array containing the current state of the form.
+ */
+function trianzkm_validate_session($form, &$form_state) {
+  $values = $form_state['values'];
+  $now = time();
+  $session_start_date = $values['field_session_date_time'][LANGUAGE_NONE][0]['value'];
+  $session_start_timestamp = strtotime($session_start_date);
+  $session_end_date = $values['field_session_date_time'][LANGUAGE_NONE][0]['value2'];
+  $session_end_timestamp = strtotime($session_end_date);
+
+  if ($session_start_timestamp < $now) {
+    form_set_error('field_session_date_time', 'Session start date should not be less than current date.');
+  }
+  if ($session_start_timestamp == $session_end_timestamp) {
+    form_set_error('field_session_date_time', 'Session End-time should be greater than session start time');
+  }
+
+  if (!empty($values['field_training_title'])) {
+    $training_id = $values['field_training_title'][LANGUAGE_NONE][0]['target_id'];
+    $current_nid = $form['nid']['#value'];
+    $existed_sessions = trianzkm_get_training_sessions($training_id, $current_nid);
+    if (!empty($existed_sessions)) {
+      $session_error_flag = 0;
+      $existed_session_timings = trianzkm_get_sessions_timings($existed_sessions);
+      foreach ($existed_session_timings as $existed_session) {
+        $existed_session_start_timestamp = strtotime($existed_session->start_time);
+        $existed_session_end_timestamp = strtotime($existed_session->end_time);
+
+        if ($existed_session_start_timestamp == $session_start_timestamp) {
+          $session_error_flag = 1;
+          break;
+        }
+        if (($session_start_timestamp > $existed_session_start_timestamp) && ($session_start_timestamp < $existed_session_end_timestamp)) {
+          $session_error_flag = 1;
+          break;
+        }
+        if (($session_start_timestamp < $existed_session_start_timestamp) && ($session_end_timestamp > $existed_session_start_timestamp)) {
+          $session_error_flag = 1;
+          break;
+        }
+      }
+      if ($session_error_flag) {
+        form_set_error('field_session_date_time', 'Session timings are conflicting with already existed sessions.');
+      }
+    }
+  }
+}
+
+/**
+ * To get sessions from training id.
+ * @param int $training_id
+ *  Training ID value.
+ * @param int $current_node_id
+ *  Current Node id.
+ * @return array
+ *  List of session id's for particular training id.
+ */
+function trianzkm_get_training_sessions($training_id, $current_node_id) {
+  $sessions = array();
+  $result = db_select('field_data_field_training_title', 'field_training')
+      ->fields('field_training', array('entity_id'))
+      ->condition('field_training_title_target_id', $training_id, '=')
+      ->execute()
+      ->fetchAll();
+  foreach ($result as $session) {
+    // Excluding the current node id.
+    if ($session->entity_id != $current_node_id) {
+      $sessions[] = $session->entity_id;
+    }
+  }
+  return $sessions;
+}
+
+/**
+ * To get timings for sessions.
+ * @param array $sessions
+ *  List of session id's.
+ * @return array
+ *  List timings with respect to the sessions.
+ */
+function trianzkm_get_sessions_timings($sessions) {
+  $session_timings = array();
+  $query = db_select('field_data_field_session_date_time', 'session_date');
+  $query->addField('session_date', 'field_session_date_time_value', 'start_time');
+  $query->addField('session_date', 'field_session_date_time_value2', 'end_time');
+  $query->condition('entity_id', $sessions, 'IN');
+  $result = $query->execute()->fetchAll();
+
+  return $result;
+}
+
+/**
+ * Implements hook_views_pre_render().
+ */
+function trianzkm_views_pre_render(&$view) {
+  // Removing the duplicate trainings
+  if ($view->name == 'my_cls_trainings') {
+    $training_ids = array();
+    foreach ($view->result as $key => $row) {
+      if (isset($row->node_field_data_field_training_title_nid)) {
+        if (in_array($row->node_field_data_field_training_title_nid, $training_ids)) {
+          // Unsetting the training if already existed in the result.
+          unset($view->result[$key]);
+        }
+        else {
+          $training_ids[] = $row->node_field_data_field_training_title_nid;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * To get start-date and end-date of sessions.
+ */
+function trianzkm_get_training_timings($sessions) {
+  $session_timings = array();
+  $query = db_select('field_data_field_session_date_time', 'session_date');
+  $query->addExpression('MIN(field_session_date_time_value)', 'start_date');
+  $query->addExpression('MAX(field_session_date_time_value2)', 'end_date');
+  if (!empty($sessions)) {
+    $query->condition('entity_id', $sessions, 'IN');
+  }
+  $result = $query->execute()->fetchAll();
+
+  return $result;
+}
+
+/**
+ * Implements hook_action_info().
+ */
+function trianzkm_action_info() {
+  return array(
+    'trianzkm_update_close_action' => array(
+      'type' => 'node',
+      'label' => t('Closed'),
+      'configurable' => FALSE,
+      'behavior' => array('closed_property'),
+      'triggers' => array('any'),
+    ),
+    'trianzkm_update_active_action' => array(
+      'type' => 'node',
+      'label' => t('Active'),
+      'configurable' => FALSE,
+      'behavior' => array('active_property'),
+      'triggers' => array('any'),
+    ),
+    'trianzkm_update_inprogress_action' => array(
+      'type' => 'node',
+      'label' => t('In Progress'),
+      'configurable' => FALSE,
+      'behavior' => array('inprogress_property'),
+      'triggers' => array('any'),
+    ),
+  );
+}
+
+/**
+ * Action callback function for 'closing' the node status.
+ */
+function trianzkm_update_close_action($node, $context) {
+  if (trianzkm_verify_close_training($node->nid)) {
+    $node->field_status[LANGUAGE_NONE][0]['value'] = 1;
+    field_attach_update('node', $node);
+    watchdog('trianzkm', 'updated the nid = @nid status as closed', array('@nid' => $node->nid));
+  }
+  else {
+    drupal_set_message(t('Sessions for ' . $node->title . ' training were not completed yet.'), 'error', FALSE);
+  }
+}
+
+/**
+ * Action callback function for 'active' the node status.
+ */
+function trianzkm_update_active_action($node, $context) {
+  $node->field_status[LANGUAGE_NONE][0]['value'] = 2;
+  field_attach_update('node', $node);
+  watchdog('trianzkm', 'updated the nid = @nid status as active', array('@nid' => $node->nid));
+}
+
+/**
+ * Action callback function for 'in-progress' the node status.
+ */
+function trianzkm_update_inprogress_action($node, $context) {
+  $node->field_status[LANGUAGE_NONE][0]['value'] = 3;
+  field_attach_update('node', $node);
+  watchdog('trianzkm', 'updated the nid = @nid status as in-progress', array('@nid' => $node->nid));
+}
+
+/**
+ * To verify whether to close the training or not.
+ *
+ * @param int $training_id
+ *   Training node id.
+ *
+ * @return boolean
+ *   TRUE if it satisfy the closing conditions.
+ */
+function trianzkm_verify_close_training($training_id) {
+  $session_ids = trianzkm_get_training_sessions($training_id, '');
+  if (!empty($session_ids)) {
+    $result = trianzkm_get_training_timings($session_ids);
+    $training_timings = reset($result);
+    if (!empty($training_timings)) {
+      $end_date_timestamp = strtotime($training_timings->end_date);
+      // verifying the training end date with current date.
+      if ($end_date_timestamp > time()) {
+        // We should not close the training.
+        return FALSE;
+      }
+      else {
+        // We can close the training.
+        return TRUE;
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_user_delete().
+ */
+function trianzkm_user_delete($account) {
+  if (is_numeric($account->uid)) {
+    db_delete('trainings_attendancetracker')
+        ->condition('participant_id', $account->uid)
+        ->execute();
+  }
+}
+

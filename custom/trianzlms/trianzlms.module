@@ -1,0 +1,506 @@
+<?php
+
+/**
+ * @file
+ * Primarily Drupal hooks and global API functions to manipulate views.
+ *
+ * This is the main module file for Trianz. 
+ */
+function trianzlms_init() {
+  global $base_url;
+  $my_settings = array(
+    'base_url' => $base_url
+  );
+
+  drupal_add_js(array('mycustomjs' => $my_settings), 'setting');
+
+}
+
+/**
+ * Implements hook_menu().
+ */
+function trianzlms_menu() {
+  $items = array();
+  $items['update-data'] = array(
+    'title' => 'Updating the data',
+    'page callback' => 'trianzlms_update_data',
+    'access callback' => TRUE,
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['delete-data'] = array(
+    'title' => 'Deleting the data',
+    'page callback' => 'trianzlms_delete_data',
+    'access callback' => TRUE,
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+function trianzlms_theme($existing, $type, $theme, $path) {
+
+  $items['trianzlms_add_new_skill'] = array(
+    'render element' => 'form',
+    'template' => 'add-new-skill',
+    'path' => drupal_get_path('module', 'trianzlms') . '/templates/',
+  );
+
+  $items['trianzlms_add_new_skill_concept'] = array(
+    'render element' => 'form',
+    'template' => 'add-new-skill-concept',
+    'path' => drupal_get_path('module', 'trianzlms') . '/templates/',
+  );
+
+  $items['trianzlms_add_new_competency_group'] = array(
+    'render element' => 'form',
+    'template' => 'add-new-competency-group',
+    'path' => drupal_get_path('module', 'trianzlms') . '/templates/',
+  );
+
+  $items['trianzlms_add_new_grade'] = array(
+    'render element' => 'form',
+    'template' => 'add-new-grade',
+    'path' => drupal_get_path('module', 'trianzlms') . '/templates/',
+  );
+
+  $items['trianzlms_add_new_roles_and_responsibility'] = array(
+    'render element' => 'form',
+    'template' => 'add-new-roles-and-responsibility',
+    'path' => drupal_get_path('module', 'trianzlms') . '/templates/',
+  );
+  return $items;
+}
+
+function trianzlms_get_skill_list() {
+  $list = array();
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'node')
+      ->entityCondition('bundle', array('skills'))
+      ->propertyCondition('status', 1);
+
+  $result = $query->execute();
+  if (isset($result['node'])) {
+    $nids = array_map(function ($entry) {
+      return $entry->nid;
+    }, $result['node']);
+  }
+  $nodes = node_load_multiple($nids);
+  foreach ($nodes as $node) {
+    $list[$node->nid] = $node->title;
+  }
+  return $list;
+}
+
+function trianzlms_skill_list($form, &$form_state) {
+  $form = array();
+  $options = trianzlms_get_skill_list();
+
+  $form['item'] = array(
+    '#type' => 'select',
+    '#options' => $options,
+  );
+
+  return $form;
+}
+
+function trianzlms_update_data() {
+  $data = $_POST['data'];
+  $updated_values = json_decode($data, TRUE);
+
+  if ($updated_values['type'] == 'term') {
+    $new_term = taxonomy_term_load($updated_values['id']);
+    if ($new_term->vocabulary_machine_name == 'grades') {
+      $exp_range = explode('-', $updated_values['column_2']);
+      $new_term->name = $updated_values['column_1'];
+      $new_term->field_experience['und']['0']['from'] = $exp_range[0];
+      $new_term->field_experience['und']['0']['to'] = $exp_range[1];
+    }
+    elseif ($new_term->vocabulary_machine_name == 'competency_group') {
+      $new_term->name = $updated_values['column_1'];
+    }
+    elseif ($new_term->vocabulary_machine_name == 'roles_responsibilities') {
+      $new_term->name = $updated_values['column_1'];
+      $new_term->description = $updated_values['column_2'];
+    }
+    taxonomy_term_save($new_term);
+  }
+  elseif ($updated_values['type'] == 'node') {
+    $node = node_load($updated_values['id']);
+    if ($node->type == 'skills') {
+      if (isset($updated_values['column_1'])) {
+        print $updated_values['column_1'];
+        $node->title = $updated_values['column_1'];
+      }
+      if (isset($updated_values['column_2'])) {
+        $node->body[LANGUAGE_NONE][0]['value'] = $updated_values['column_2'];
+      }
+      node_save($node);
+    }
+    if ($node->type == 'skills_concepts') {
+      if (isset($updated_values['column_1'])) {
+        $node->field_select_skill[LANGUAGE_NONE][0]['target_id'] = $updated_values['column_1'];
+      }
+      if (isset($updated_values['column_2'])) {
+        $node->title = $updated_values['column_2'];
+      }
+      node_save($node);
+    }
+  }
+  print 'Updated ' . $updated_values['type'] . ' id = ' . $updated_values['id'];
+}
+
+function trianzlms_delete_data() {
+  $data = $_POST['data'];
+  $data_values = json_decode($data, TRUE);
+  if ($data_values['type'] == 'term') {
+    taxonomy_term_delete($data_values['id']);
+  }
+  if ($data_values['type'] == 'node') {
+    node_delete($data_values['id']);
+  }
+}
+
+function trianzlms_add_new_skill($form, &$form_state) {
+  $form = array();
+  $form['#prefix'] = '<div class="status-messages"></div>';
+  $form['#attached']['js'] = array(
+    array(
+      'type' => 'file',
+      'data' => drupal_get_path('module', 'trianzlms') . '/js/reload.js',
+    ),
+  );
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#size' => 20,
+    '#required' => TRUE,
+    '#weight' => 1,
+  );
+
+  $form['save-button'] = array(
+    '#type' => 'button',
+    '#value' => t('Save'),
+    '#weight' => 10,
+    '#ajax' => array(
+      'callback' => 'trianzlms_add_new_skill_submit',
+      'effect' => 'fade',
+      'method' => 'replaceWith',
+    ),
+  );
+
+  return $form;
+}
+
+function trianzlms_add_new_skill_submit(&$form, &$form_state) {
+  global $user;
+  $commands = array();
+  $name = trim($form_state['values']['name']);
+
+
+  if (empty($name)) {
+    $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">Name should not empty</div>');
+  }
+  else {
+    $node = new stdClass();
+    $node->type = 'skills';
+    $node->uid = $user->uid;
+    $node->is_new = TRUE;
+    $node->language = LANGUAGE_NONE;
+    $node->title = $name;
+    $node->status = 1;
+    $node = node_submit($node); // Prepare node for saving
+    node_save($node);
+    $commands[] = array('command' => 'reloadPage');
+  }
+
+  return array('#type' => 'ajax', '#commands' => $commands);
+}
+
+function trianzlms_add_new_competency_group($form, &$form_state) {
+  $form = array();
+  $form['#prefix'] = '<div class="status-messages"></div>';
+  $form['#attached']['js'] = array(
+    array(
+      'type' => 'file',
+      'data' => drupal_get_path('module', 'trianzlms') . '/js/reload.js',
+    ),
+  );
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#size' => 20,
+    '#required' => TRUE,
+    '#weight' => 1,
+  );
+
+  $form['save-button'] = array(
+    '#type' => 'button',
+    '#value' => t('Save'),
+    '#weight' => 10,
+    '#ajax' => array(
+      'callback' => 'trianzlms_add_new_competency_group_submit',
+      'effect' => 'fade',
+      'method' => 'replaceWith',
+    ),
+  );
+
+  return $form;
+}
+
+function trianzlms_add_new_competency_group_submit(&$form, &$form_state) {
+  global $user;
+  $commands = array();
+  $name = trim($form_state['values']['name']);
+
+
+  if (empty($name)) {
+    $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">Competency Group Name should not be empty</div>');
+  }
+  else {
+    $vocabulary = taxonomy_vocabulary_machine_name_load('competency_group');
+    $term = new stdClass();
+    $term->name = $name;
+    $term->vid = $vocabulary->vid;
+    taxonomy_term_save($term);
+    if (!$term->tid) {
+      $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">New Competency Group Name is not created.</div>');
+    }
+    else {
+      $commands[] = array('command' => 'reloadPage');
+    }
+  }
+
+  return array('#type' => 'ajax', '#commands' => $commands);
+}
+
+function trianzlms_add_new_grade($form, &$form_state) {
+  $form = array();
+  $form['#prefix'] = '<div class="status-messages"></div>';
+  $form['#attached']['js'] = array(
+    array(
+      'type' => 'file',
+      'data' => drupal_get_path('module', 'trianzlms') . '/js/reload.js',
+    ),
+  );
+  $form['grade'] = array(
+    '#type' => 'textfield',
+    '#size' => 20,
+    '#required' => TRUE,
+    '#weight' => 1,
+  );
+  $form['experience'] = array(
+    '#type' => 'textfield',
+    '#maxlength' => 255,
+    '#required' => TRUE,
+    '#weight' => 1,
+  );
+
+  $form['save-button'] = array(
+    '#type' => 'button',
+    '#value' => t('Save'),
+    '#weight' => 10,
+    '#ajax' => array(
+      'callback' => 'trianzlms_add_new_grade_submit',
+      'effect' => 'fade',
+      'method' => 'replaceWith',
+    ),
+  );
+
+  return $form;
+}
+
+function trianzlms_add_new_grade_submit(&$form, &$form_state) {
+  global $user;
+  $commands = array();
+  $grade = trim($form_state['values']['grade']);
+  $experience = trim($form_state['values']['experience']);
+  $error_flag = 0;
+  if (empty($grade)) {
+    $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">Please enter new grade name.</div>');
+    $error_flag = 1;
+  }
+  if (empty($experience)) {
+    $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">Please enter new grade experience range.</div>');
+    $error_flag = 1;
+  }
+  else {
+    preg_match('/(\d-\d)/', $experience, $matches);
+    // print '<pre>'; print_r($matches);exit;
+    if (!empty($matches)) {
+      $exp_range = explode('-', $experience);
+      if ($exp_range[0] > $exp_range[1]) {
+        $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">Please enter proper grade experience range values.</div>');
+        $error_flag = 1;
+      }
+    }
+    else {
+      $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">Please enter proper grade experience range values</div>');
+      $error_flag = 1;
+    }
+  }
+
+  if (!$error_flag) {
+
+    $vocabulary = taxonomy_vocabulary_machine_name_load('grades');
+    $term = new stdClass();
+    $term->name = $grade;
+    if (isset($exp_range)) {
+      $term->field_experience['und']['0']['from'] = $exp_range[0];
+      $term->field_experience['und']['0']['to'] = $exp_range[1];
+    }
+
+    $term->vid = $vocabulary->vid;
+    taxonomy_term_save($term);
+    if (!$term->tid) {
+      $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">New Grade Name is not created.</div>');
+    }
+    else {
+      $commands[] = array('command' => 'reloadPage');
+    }
+  }
+
+  return array('#type' => 'ajax', '#commands' => $commands);
+}
+
+function trianzlms_add_new_roles_and_responsibility($form, &$form_state) {
+  $form = array();
+  $form['#prefix'] = '<div class="status-messages"></div>';
+  $form['#attached']['js'] = array(
+    array(
+      'type' => 'file',
+      'data' => drupal_get_path('module', 'trianzlms') . '/js/reload.js',
+    ),
+  );
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#size' => 20,
+    '#required' => TRUE,
+    '#weight' => 1,
+  );
+  $form['description'] = array(
+    '#type' => 'textarea',
+    '#required' => TRUE,
+    '#weight' => 2,
+  );
+
+  $form['save-button'] = array(
+    '#type' => 'button',
+    '#value' => t('Save'),
+    '#weight' => 10,
+    '#ajax' => array(
+      'callback' => 'trianzlms_add_new_roles_and_responsibility_submit',
+      'effect' => 'fade',
+      'method' => 'replaceWith',
+    ),
+  );
+
+  return $form;
+}
+
+function trianzlms_add_new_roles_and_responsibility_submit(&$form, &$form_state) {
+  global $user;
+  $commands = array();
+  $name = trim($form_state['values']['name']);
+  $description = trim($form_state['values']['description']);
+  $error_flag = 0;
+
+  if (empty($name)) {
+    $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">Please enter new Roles & Responsibility code.</div>');
+    $error_flag = 1;
+  }
+  if (empty($description)) {
+    $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">Please enter new Roles & Responsibility description.</div>');
+    $error_flag = 1;
+  }
+  if (!$error_flag) {
+    $vocabulary = taxonomy_vocabulary_machine_name_load('roles_responsibilities');
+    $term = new stdClass();
+    $term->name = $name;
+    $term->description = $description;
+    $term->vid = $vocabulary->vid;
+    taxonomy_term_save($term);
+    if (!$term->tid) {
+      $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">New Roles & Responsibility is not created.</div>');
+    }
+    else {
+      $commands[] = array('command' => 'reloadPage');
+    }
+  }
+
+  return array('#type' => 'ajax', '#commands' => $commands);
+}
+
+function trianzlms_add_new_skill_concept($form, &$form_state) {
+  $form = array();
+  $form['#prefix'] = '<div class="status-messages"></div>';
+  $form['#attached']['js'] = array(
+    array(
+      'type' => 'file',
+      'data' => drupal_get_path('module', 'trianzlms') . '/js/reload.js',
+    ),
+  );
+  $options = trianzlms_get_skill_list();
+
+  $form['main_skill'] = array(
+    '#type' => 'select',
+    '#options' => $options,
+    '#required' => TRUE,
+    '#weight' => 1,
+  );
+  $form['skill_concept_name'] = array(
+    '#type' => 'textfield',
+    '#required' => TRUE,
+    '#weight' => 2,
+  );
+
+  $form['save-button'] = array(
+    '#type' => 'button',
+    '#value' => t('Save'),
+    '#weight' => 10,
+    '#ajax' => array(
+      'callback' => 'trianzlms_add_new_skill_concept_submit',
+      'effect' => 'fade',
+      'method' => 'replaceWith',
+    ),
+  );
+
+  return $form;
+}
+
+function trianzlms_add_new_skill_concept_submit(&$form, &$form_state) {
+  global $user;
+  $commands = array();
+  $main_skill_id = trim($form_state['values']['main_skill']);
+  $skill_concept_name = trim($form_state['values']['skill_concept_name']);
+  $error_flag = 0;
+
+  if ($main_skill_id == '' || empty($main_skill_id)) {
+    $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">Please select any main skill.</div>');
+    $error_flag = 1;
+  }
+  if (empty($skill_concept_name)) {
+    $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">Please enter new skill concept name.</div>');
+    $error_flag = 1;
+  }
+  if (!$error_flag) {
+    $node = new stdClass();
+    $node->type = 'skills_concepts';
+    $node->uid = $user->uid;
+    $node->is_new = TRUE;
+    $node->language = LANGUAGE_NONE;
+    $node->title = $skill_concept_name;
+    $node->field_select_skill[LANGUAGE_NONE][0]['target_id'] = $main_skill_id;
+    $node->status = 1;
+    $node = node_submit($node); // Prepare node for saving
+    node_save($node);
+    if (!$node->nid) {
+      $commands[] = ajax_command_insert('.status-messages', '<div class="status-messages">New skill concept is not created.</div>');
+    }
+    else {
+      $commands[] = array('command' => 'reloadPage');
+    }
+  }
+
+  return array('#type' => 'ajax', '#commands' => $commands);
+}

@@ -1,0 +1,33 @@
+.body .form-text, 
+.body .form-textarea {
+    width: 25% !important;
+}
+.heading_group {
+    border-bottom: 2px solid #777777;
+    margin: 10px auto;
+}
+#attendancetracker-attendance-status-form th,
+#attendancetracker-attendance-status-form td {    
+    padding-right: 0px;
+}
+#attendancetracker-attendance-status-form table th:first-child,
+#attendancetracker-attendance-status-form table td:first-child {
+    width: 20%;
+    text-align: center;
+}
+#attendancetracker-attendance-status-form table th:last-child,
+#attendancetracker-attendance-status-form table th:nth-child(2),
+#attendancetracker-attendance-status-form table td:last-child,
+#attendancetracker-attendance-status-form table td:nth-child(2){
+    width: 40%;
+    padding-left: 5px;
+}
+.sticky-table {
+    width: 100%;
+}
+@media (min-width: 320px) and (max-width: 767px) {
+    .page-header,
+    .heading_group {
+        display: none;
+    }
+}

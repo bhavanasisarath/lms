@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Trianz University Competency Views feature.
+ */
+
+include_once 'trianz_university_competency_views.features.inc';

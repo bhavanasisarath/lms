@@ -1,0 +1,35 @@
+.views-table {
+    border: 1px solid #CCCCCC;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+.view-footer .views-table tr {
+   vertical-align: top; 
+}
+.view-footer .views-table tr td {
+   margin: 0px;
+   vertical-align: middle; 
+}
+.view-footer .views-table tr td:first-child {
+   width: 17%;
+}
+.view-footer #edit-submit {
+    margin: 0 0 0 2.3em;
+}
+.edit-textarea textarea {
+    width: 100% !important;
+}
+.view-footer #edit-description {
+    display: block;
+    margin: 0;
+    width: 100% !important;
+}
+.dashboard div {
+    text-align: center;
+    margin: 0 auto;
+    padding: 20px 0;
+}
+.dashboard div img {
+    margin: 0 auto;
+    padding: 5px 0;
+}

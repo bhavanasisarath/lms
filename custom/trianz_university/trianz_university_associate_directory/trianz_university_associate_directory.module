@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Trianz University Associate Directory feature.
+ */
+
+include_once 'trianz_university_associate_directory.features.inc';

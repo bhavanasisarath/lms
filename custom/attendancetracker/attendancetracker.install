@@ -1,0 +1,75 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for attendance tracker module.
+ *
+ */
+
+/**
+ * Implements hook_install().
+ */
+function attendancetracker_install() {
+
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function attendancetracker_uninstall() {
+
+}
+
+/**
+ * Implements hook_schema().
+ */
+function attendancetracker_schema() {
+  $at_schema = array();
+  $at_schema['trainings_attendancetracker'] = array(
+    'description' => 'Event attendance tracking.',
+    'fields' => array(
+      'id' => array(
+        'type' => 'serial',
+        'not null' => TRUE,
+        'disp-width' => '11',
+      ),
+      'user_id' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'disp-width' => '11',
+      ),
+      'training_id' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'disp-width' => '11',
+      ),
+      'session_id' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'disp-width' => '11',
+      ),
+      'trainer_id' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'disp-width' => '11',
+      ),
+      'duration' => array(
+        'type' => 'varchar',
+        'not null' => TRUE,
+        'length' => '24',
+      ),
+      'participant_id' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'disp-width' => '11',
+      ),
+      'at_status' => array(
+        'type' => 'varchar',
+        'length' => '24',
+        'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('id'),
+  );
+  return $at_schema;
+}

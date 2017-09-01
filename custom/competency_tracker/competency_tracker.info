@@ -1,0 +1,5 @@
+name = Competency Tracker Module
+description = Custom module for tracking employee competency
+package = Custom
+version = "7.x-1.0"
+core = "7.x"

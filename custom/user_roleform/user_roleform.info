@@ -1,0 +1,14 @@
+name = Trianz User Role Assignment
+description = Create customized lists and queries from your database.
+package = Trianz
+core = 7.x
+
+; Add a java script for all media
+scripts[] = js/get_roles.js
+
+; Information added by trianz packaging script on 2017-04-25
+version = "7.x"
+core = "7.x"
+project = "trianz"
+datestamp = "1491158591"
+

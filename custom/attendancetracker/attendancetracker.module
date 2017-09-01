@@ -1,0 +1,340 @@
+<?php
+
+/**
+ * @file
+ * Includes all Attendance Tracker functionalities.
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function attendancetracker_permission() {
+  return array(
+    'change the training status' => array(
+      'title' => t('Change the training status'),
+      'description' => t('Allow user to change the status of the Training'),
+    ),
+    'take the attendance' => array(
+      'title' => t('Take the attendance'),
+      'description' => t('Allow user to take the attendance'),
+    ),
+  );
+}
+
+/**
+ * Function to calculate duration between two dates.
+ */
+function _attendancetracker_calculate_duration($start_dt, $end_dt) {
+  $timestamp1 = strtotime($start_dt);
+  $timestamp2 = strtotime($end_dt);
+  $hour = abs($timestamp2 - $timestamp1) / (60 * 60);
+  return ($hour);
+}
+
+/**
+ * Implements hook_menu().
+ */
+function attendancetracker_menu() {
+  $items['change/training-status/%/%'] = array(
+    'title' => 'Change Training Status',
+    'page callback' => '_attendancetracker_change_training_status',
+    'page arguments' => array(2, 3),
+    'access arguments' => array('change the training status'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['attendance/%/%/%/take-attendance'] = array(
+    'title' => 'Take Attendance',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('attendancetracker_attendance_status_form'),
+    'access arguments' => array('change the training status'),
+    'type' => MENU_CALLBACK,
+    'access callback' => TRUE,
+  );
+  return $items;
+}
+
+/**
+ * To change the status of the training.
+ */
+function _attendancetracker_change_training_status($trg_nid, $status_id) {
+  $node = node_load($trg_nid); // Loading the training.
+  // Change field value.
+  $field = new stdClass();
+  $field->type = 'training'; // Content type name.
+  $field->nid = $node->nid; // Node id.
+  // Assigning the status value to the field.
+  $field->field_status[LANGUAGE_NONE][0]['value'] = $status_id;
+  $change_status = 0;
+  // Status ID 1 is for closing.
+  if ($status_id == 1) {
+    if (trianzkm_verify_close_training($trg_nid)) {
+      $change_status = 1;
+    }
+    else {
+      $change_status = 0;
+      drupal_set_message(t('Sessions for ' . $node->title . ' training were not completed yet.'), 'error', 'TRUE');
+    }
+  }
+  else {
+    $change_status = 1;
+  }
+  if ($change_status) {
+    // Updating the field status value.
+    field_attach_update('node', $field);
+    drupal_set_message(t('' . $node->title . ' training status has been updated.'), 'status', 'TRUE');
+  }
+  drupal_goto('training-list');
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function attendancetracker_views_api($module, $api) {
+  if ($module == 'views' && $api == 'views_default') {
+    return array('version' => 2);
+  }
+
+  return array(
+    'api' => 3,
+    'path' => drupal_get_path('module', 'attendancetracker') . '/views',
+  );
+}
+
+/**
+ * Existing node checking in attedance tracker table.
+ */
+function existing_attendance_node_check($training_id, $session_id, $trainer_id, $participant_id) {
+  $query = db_query('SELECT id, at_status FROM {trainings_attendancetracker} WHERE '
+      . 'training_id = :training_id and session_id = :session_id and trainer_id = :trainer_id '
+      . 'and participant_id = :participant_id', array("training_id" => $training_id,
+    "session_id" => $session_id, "trainer_id" => $trainer_id,
+    "participant_id" => $participant_id))->fetchAll();
+  return $query;
+}
+
+/**
+ * Implements attendancetracker_attendance_status_form().
+ */
+function attendancetracker_attendance_status_form($form, &$form_state) {
+  global $user;
+  $login_user = user_load($user->uid);
+  $trainer_id = arg(1);
+  $training_id = arg(2);
+  $session_id = arg(3);
+
+  $training_node_data = node_load($training_id);
+  $session_node_data = node_load($session_id);
+  $duration = _attendancetracker_calculate_duration($session_node_data->field_session_date_time['und'][0]['value2'], $session_node_data->field_session_date_time['und'][0]['value']);
+
+  $form = array();
+  $form['heading_group'] = array(
+    '#type' => 'fieldset',
+    '#prefix' => '<div class="col-md-12 heading_group">',
+    '#suffix' => '</div>',
+  );
+  $form['heading_group']['training'] = array(
+    '#type' => 'fieldset',
+    '#prefix' => '<div class="col-md-3">',
+    '#suffix' => '</div>',
+  );
+  $form['heading_group']['training']['name'] = array(
+    '#markup' => t('Training Program'),
+  );
+  $form['heading_group']['training']['name1'] = array(
+    '#markup' => t('&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;'),
+  );
+  $form['heading_group']['training']['name2'] = array(
+    '#markup' => $training_node_data->title,
+  );
+  $form['heading_group']['session'] = array(
+    '#type' => 'fieldset',
+    '#prefix' => '<div class="col-md-3">',
+    '#suffix' => '</div>',
+  );
+  $form['heading_group']['session']['name'] = array(
+    '#markup' => t('Session Name'),
+  );
+  $form['heading_group']['session']['name1'] = array(
+    '#markup' => t('&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;'),
+  );
+  $form['heading_group']['session']['name2'] = array(
+    '#markup' => $session_node_data->title,
+  );
+  $form['heading_group']['session_date'] = array(
+    '#type' => 'fieldset',
+    '#prefix' => '<div class="col-md-3">',
+    '#suffix' => '</div>',
+  );
+  $form['heading_group']['session_date']['name'] = array(
+    '#markup' => t('Date & Time'),
+  );
+  $form['heading_group']['session_date']['name1'] = array(
+    '#markup' => t('&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;'),
+  );
+
+  $form['heading_group']['session_date']['name2'] = array(
+    '#markup' => '<br>' . date("D, d M Y G:i", strtotime($session_node_data->field_session_date_time['und'][0]['value']) + 19800) . '<br>' . date("D, d M Y G:i", strtotime($session_node_data->field_session_date_time['und'][0]['value2']) + 19800),
+  );
+  $form['heading_group']['duration1'] = array(
+    '#type' => 'fieldset',
+    '#prefix' => '<div class="col-md-3">',
+    '#suffix' => '</div>',
+  );
+  $form['heading_group']['duration1']['name'] = array(
+    '#markup' => t('Duration'),
+  );
+  $form['heading_group']['duration1']['name1'] = array(
+    '#markup' => t('&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;'),
+  );
+  $form['heading_group']['duration1']['name2'] = array(
+    '#markup' => $duration . ' Hour\'s',
+  );
+  $form['tid'] = array(
+    '#type' => 'hidden',
+    '#default_value' => $training_id,
+  );
+  $form['trainer_id'] = array(
+    '#type' => 'hidden',
+    '#default_value' => $trainer_id,
+  );
+  $form['sid'] = array(
+    '#type' => 'hidden',
+    '#default_value' => $session_id,
+  );
+  $form['duration'] = array(
+    '#type' => 'hidden',
+    '#default_value' => $duration,
+  );
+  $header = array
+    (
+    'first_name' => t('First Name'),
+    'last_name' => t('Last Name'),
+  );
+  // Initialize an empty array.
+  $options = array();
+  $default_value = array();
+  $participants_list = $training_node_data->field_participants_list['und'];
+  foreach ($participants_list as $key => $value) {
+    $user_list = user_load($value['target_id']);
+    $options[$value['target_id']] = array // each element of the array is keyed with the UID
+      (
+      'first_name' => $user_list->field_emp_first_name['und'][0]['value'], // 'first_name' was the key used in the header
+      'last_name' => $user_list->field_emp_last_name['und'][0]['value'], // 'last_Name' was the key used in the header
+    );
+  }
+
+  foreach ($participants_list as $key => $value) {
+    $user_list = user_load($value['target_id']);
+    $participant_status = existing_attendance_node_check($training_id, $session_id, $trainer_id, $value['target_id']);
+    if (isset($participant_status[0]->at_status))
+      $default_value[$value['target_id']] = $participant_status[0]->at_status == 'Present' ? 1 : 0;
+  }
+  $submit_message = empty($default_value) ? 'Submit Attendance' : 'Update Attendance';
+  $form['table'] = array
+    (
+    '#type' => 'tableselect',
+    '#header' => $header,
+    '#options' => $options,
+    '#default_value' => $default_value,
+    '#empty' => t('No users found'),
+    '#prefix' => '<div class="col-md-12">',
+    '#suffix' => '</div>',
+  );
+
+  if (in_array('Trainer', $login_user->roles)) {
+    if (!empty($default_value)) {
+      $form['table']['#options']['#disabled'] = TRUE;
+    }
+    else {
+      $form['submit'] = array(
+        '#type' => 'submit',
+        '#name' => 'submit',
+        '#value' => $submit_message,
+      );
+    }
+  }
+  if (!in_array('Trainer', $login_user->roles)) {
+    $form['submit'] = array(
+      '#type' => 'submit',
+      '#name' => 'submit',
+      '#value' => $submit_message,
+    );
+  }
+  return $form;
+}
+
+/**
+ * Implements attendancetracker_attendance_status_form_validate().
+ */
+function attendancetracker_attendance_status_form_validate($form, &$form_state) {
+  $values = $form_state['values'];
+  $field_name = $values['table'];
+  $selection = array();
+  if (!empty($values['table'])) {
+    // If using "force single", the selection needs to be converted to an array.
+    if (is_array($values['table'])) {
+      $selection = array_filter($values['table']);
+    }
+    else {
+      $selection = array($values['table']);
+    }
+  }
+  if (!$selection) {
+    form_set_error('table', t('Please select at least one item.'));
+  }
+}
+
+/**
+ * Implements attendancetracker_attendance_status_form_submit().
+ */
+function attendancetracker_attendance_status_form_submit($form, &$form_state) {
+  global $user;
+  $values = $form_state['values'];
+  $participant_list = $values['table'];
+  $training_node_data = node_load($values['tid']);
+  $participants_list = $training_node_data->field_participants_list['und'];
+  foreach ($participants_list as $key => $value) {
+    $participant_status = existing_attendance_node_check($values['tid'], $values['sid'], $values['trainer_id'], $value['target_id']);
+    if (empty($participant_status)) {
+      $nid = db_insert('trainings_attendancetracker') // Table name no longer needs {}
+          ->fields(array(
+            'user_id' => $user->uid,
+            'training_id' => $values['tid'],
+            'session_id' => $values['sid'],
+            'trainer_id' => $values['trainer_id'],
+            'duration' => $values['duration'],
+            'participant_id' => $value['target_id'],
+            'at_status' => $participant_list[$value['target_id']] != 0 ? 'Present' : 'Absent',
+            'created_time' => time(),
+            'updated_time' => time(),
+          ))
+          ->execute();
+    }
+    else {
+      $nid = db_update('trainings_attendancetracker')
+          ->fields(array(
+            'user_id' => $user->uid,
+            'at_status' => $participant_list[$value['target_id']] != 0 ? 'Present' : 'Absent',
+            'updated_time' => time(),
+          ))
+          ->condition('id', $participant_status[0]->id, '=')
+          ->execute();
+    }
+  }
+  drupal_set_message(t('Attendance submitted successfully.'));
+  drupal_goto('track-attendance/' . $values['tid'] . '/' . $values['sid']);
+}
+
+/**
+ * Implements hook_update_N().
+ */
+function attendancetracker_update_7101() {
+  $definition = array(
+    'type' => 'int',
+    'not null' => TRUE,
+    'default' => 0,
+  );
+  db_add_field('trainings_attendancetracker', 'created_time', $definition);
+  db_add_field('trainings_attendancetracker', 'updated_time', $definition);
+  cache_clear_all();
+}
